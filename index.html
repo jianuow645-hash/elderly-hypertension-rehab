@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DTx</title>
+<!-- 运行方式 / Run: 在本文件目录执行 `python -m http.server 8000`，浏览器打开 http://localhost:8000/dtx_frailty_rehab.html -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+:root{--n:#0b2e5a;--c:#0e9fb5;--l:#e3f6f9;--r:#d32f2f;--g:#1b8a4b}
+*{box-sizing:border-box}
+body{margin:0;font:20px/1.5 system-ui,"PingFang SC","Microsoft YaHei","Noto Sans KR",sans-serif;background:var(--l);color:#082244}
+header{background:var(--n);color:#fff;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:24px;margin:0}h2{color:var(--n);margin:.2em 0}h3{margin:.3em 0;color:var(--n)}
+button{font:inherit;font-weight:700;min-height:56px;padding:8px 20px;border:0;border-radius:14px;background:var(--c);color:#fff;cursor:pointer}
+button:active{filter:brightness(.85)}
+.lg button{min-height:44px;background:#fff;color:var(--n);margin-left:6px}.lg .on{background:var(--c);color:#fff}
+nav{display:flex;gap:8px;overflow-x:auto;padding:10px;background:#bfe9ef;position:sticky;top:0;z-index:5}
+nav button{background:#fff;color:var(--n);white-space:nowrap}nav .on{background:var(--n);color:#fff}
+main{padding:14px;max-width:1400px;margin:auto}section{display:none}section.on{display:block}
+.card{background:#fff;border-radius:16px;padding:14px;margin:10px 0;box-shadow:0 2px 8px #0002}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:8px 0}
+label{display:block;font-weight:600}
+input,select,textarea{font:inherit;width:100%;min-height:52px;padding:6px 10px;border:2px solid var(--c);border-radius:10px;background:#fff}
+.tr{display:grid;grid-template-columns:3fr 2fr;gap:14px}@media(max-width:850px){.tr{grid-template-columns:1fr}}
+.vb{position:relative;background:#000;border-radius:16px;overflow:hidden;min-height:200px}
+#cv{width:100%;display:block;transform:scaleX(-1)}
+#vid{position:absolute;width:1px;height:1px;opacity:0}
+.t4{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.t4 div{background:var(--l);border-radius:12px;padding:6px;text-align:center;font-size:17px}.t4 b{font-size:26px;display:block}
+.ok{color:var(--g)}.bad{color:var(--r)}
+.bar{height:16px;background:#cde;border-radius:8px;overflow:hidden;margin:4px 0 10px}.bar i{display:block;height:100%;background:var(--c);width:0;transition:width .2s}
+#fb{display:none;background:var(--r);color:#fff;padding:12px;border-radius:12px;font-weight:700;margin-top:8px}
+table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #bcd;padding:8px;text-align:center}
+td button{min-height:40px;padding:2px 12px}
+canvas.ch{width:100%;height:130px}
+summary{font-weight:700;cursor:pointer;min-height:48px;color:var(--n)}
+footer{text-align:center;font-size:16px;padding:14px;color:#456}
+</style></head><body>
+<header><h1 data-i="title"></h1>
+<div class="lg"><button onclick="sl(0)">简体中文</button><button onclick="sl(1)">English</button><button onclick="sl(2)">한국어</button></div></header>
+<nav id="nv"></nav>
+<main>
+<section id="s0" class="on"><h2 data-i="n0x"></h2>
+<div class="card"><div class="g">
+<label><span data-i="sbp"></span><input id="a_s" type="number" value="150"></label>
+<label><span data-i="dbp"></span><input id="a_d" type="number" value="92"></label>
+<label><span data-i="grip"></span><input id="a_g" type="number" value="22"></label>
+<label><span data-i="gait"></span><input id="a_v" type="number" step="0.1" value="0.7"></label>
+<label><span data-i="bal"></span><input id="a_b" type="number" value="8"></label></div>
+<button onclick="assess()" data-i="run"></button></div>
+<div id="ares"></div></section>
+
+<section id="s1"><h2 data-i="n1x"></h2><div class="card" id="rx"></div></section>
+
+<section id="s2"><h2 data-i="n2x"></h2><div class="tr"><div>
+<div class="vb"><video id="vid" playsinline muted></video><canvas id="cv" width="640" height="480"></canvas></div>
+<div id="fb"></div><p id="tp" class="ok" style="font-size:26px;font-weight:700"></p></div>
+<div>
+<div class="card"><h3 data-i="eng"></h3>
+<div class="g"><label><span data-i="pre"></span><input id="p_s" type="number" value="128" oninput="rPlan()"></label>
+<label>&nbsp;<input id="p_d" type="number" value="78" oninput="rPlan()"></label></div>
+<b id="pl"></b>
+<label><span data-i="ex"></span><select id="ex" onchange="rPlan()"></select></label>
+<p id="tg"></p></div>
+<div class="card"><div class="t4">
+<div><span data-i="k1"></span><b id="m1">-</b></div><div><span data-i="k2"></span><b id="m2">-</b></div>
+<div><span data-i="k3"></span><b id="m3">-</b></div><div><span data-i="k4"></span><b id="m4">-</b></div></div>
+<div><span data-i="risk"></span> <b id="rkt">0%</b></div><div class="bar"><i id="rk"></i></div>
+<div><small data-i="mic"></small></div><div class="bar"><i id="mic"></i></div>
+<p>⏱ <b id="el">0:00</b></p>
+<div class="g"><button onclick="start()" data-i="start"></button><button id="pa" onclick="pa()"></button><button onclick="fin()" style="background:var(--n)" data-i="finish"></button></div></div>
+<div class="card" id="po" style="display:none"><h3 data-i="post"></h3>
+<div class="g"><input id="q_s" type="number" value="130"><input id="q_d" type="number" value="80"></div>
+<button onclick="sv()" data-i="save"></button></div>
+</div></div></section>
+
+<section id="s3"><h2 data-i="n3x"></h2><div class="card" id="rc"></div></section>
+
+<section id="s4"><h2 data-i="n4x"></h2>
+<div class="card"><h3 data-i="g1"></h3><canvas id="c1" class="ch"></canvas></div>
+<div class="card"><h3 data-i="g2"></h3><canvas id="c2" class="ch"></canvas></div>
+<div class="card"><h3 data-i="g3"></h3><canvas id="c3" class="ch"></canvas></div></section>
+
+<section id="s5"><h2 data-i="n5x"></h2><div class="card" id="dr"></div></section>
+<section id="s6"><h2 data-i="n6x"></h2><div class="card" id="kb"></div></section>
+</main>
+<footer data-i="note"></footer>
+
+<script>
+const $=i=>document.getElementById(i),esc=s=>s.replace(/[&<>"]/g,c=>"&#"+c.charCodeAt()+";");
+const D={
+title:["老年人高血压合并衰弱远程康复DTx平台","Remote Rehab DTx for Older Adults with Hypertension & Frailty","고혈압 동반 노인 허약 원격재활 DTx 플랫폼"],
+n:[["①衰弱初筛","②康复处方","③AI姿态训练","④每日打卡","⑤恢复图谱","⑥医师后台","⑦健康科普"],["1 Screening","2 Rx Plan","3 AI Training","4 Check-in","5 Charts","6 Doctor","7 Health Tips"],["①허약 선별","②재활 처방","③AI 자세훈련","④일일 체크인","⑤회복 차트","⑥의사 콘솔","⑦건강 지식"]],
+n0x:["老年衰弱分级AI初筛测评","AI Frailty Grading Screen","노인 허약 등급 AI 선별 평가"],
+n1x:["个性化康复处方","Personalized Rehab Prescription","맞춤 재활 처방"],
+n2x:["AI摄像头实时姿态纠错训练","Live AI Pose-Correction Training","AI 카메라 실시간 자세 교정 훈련"],
+n3x:["每日康复打卡记录","Daily Rehab Check-in Log","일일 재활 체크인 기록"],
+n4x:["衰弱恢复可视化图谱","Frailty Recovery Charts","허약 회복 시각화 차트"],
+n5x:["医师远程督导后台","Doctor Remote Supervision Console","의사 원격 관리 콘솔"],
+n6x:["老年健康科普知识库","Senior Health Knowledge Base","노인 건강 지식 라이브러리"],
+p:[["降压呼吸训练","下肢肌力训练","平衡防跌倒","步态矫正","低强度居家运动"],["BP-lowering breathing","Leg strength","Balance & fall prevention","Gait correction","Low-intensity home exercise"],["혈압 낮춤 호흡","하지 근력","균형·낙상 예방","보행 교정","저강도 가정 운동"]],
+int:[["低","中","高"],["Low","Mid","High"],["낮음","중간","높음"]],
+sbp:["收缩压 (mmHg)","Systolic BP (mmHg)","수축기 혈압 (mmHg)"],
+dbp:["舒张压 (mmHg)","Diastolic BP (mmHg)","이완기 혈압 (mmHg)"],
+grip:["握力 (kg)","Grip strength (kg)","악력 (kg)"],
+gait:["步行速度 (m/s)","Gait speed (m/s)","보행 속도 (m/s)"],
+bal:["单腿站立 (秒)","One-leg stand (s)","한발 서기 (초)"],
+run:["AI 判定衰弱等级","Run AI Assessment","AI 허약 등급 판정"],
+lv0:["轻度衰弱","Mild frailty","경도 허약"],lv1:["中度衰弱","Moderate frailty","중등도 허약"],lv2:["重度衰弱","Severe frailty","중증 허약"],
+lvl:["衰弱等级","Frailty level","허약 등급"],sc:["风险评分","Risk score","위험 점수"],
+why:["依据：握力、步速、平衡、血压四项加权评分（0–2/2/2/1）。已自动生成对应康复处方。","Weighted score of grip, gait, balance and BP. A matching Rx was generated.","악력·보행·균형·혈압 가중 점수 기준. 맞춤 처방이 생성되었습니다."],
+note:["原型演示，不能替代医师诊断。摄像头/麦克风需通过 localhost 或 https 打开并允许权限。","Prototype only, not a medical diagnosis. Camera/mic need localhost or https and permission.","프로토타입이며 의학적 진단이 아닙니다. 카메라/마이크는 localhost 또는 https에서 허용 후 사용하세요."],
+min:["分钟","min","분"],int_:["强度","Intensity","강도"],
+eng:["AI血压联动自适应处方引擎","AI BP-Adaptive Rx Engine","AI 혈압 연동 적응 처방 엔진"],
+pre:["训练前血压 收缩 / 舒张","Pre-training BP (sys / dia)","훈련 전 혈압 (수축 / 이완)"],
+ex:["训练项目","Exercise","운동 종류"],target:["目标时长","Target","목표 시간"],
+m_ban:["血压过高：今日禁止训练，请休息并联系医师","BP too high: no training today. Rest and contact your doctor.","혈압이 너무 높습니다: 오늘 훈련 금지, 휴식 후 의사 상담"],
+m_seat:["血压偏高：自动降强度，改为坐姿训练（时长×0.6）","High BP: intensity lowered, seated training (time ×0.6)","혈압 높음: 강도 낮춤, 좌식 훈련 (시간×0.6)"],
+m_low:["血压临界：站姿低强度（时长×0.8）","Borderline BP: low-intensity standing (time ×0.8)","혈압 경계: 서서 저강도 (시간×0.8)"],
+m_up:["血压正常：提升难度（时长×1.2，强度+1）","BP normal: difficulty raised (time ×1.2, intensity +1)","혈압 정상: 난이도 상승 (시간×1.2, 강도+1)"],
+k1:["躯干倾斜","Trunk tilt","몸통 기울기"],k2:["膝关节角度","Knee angle","무릎 각도"],k3:["双肩倾角","Shoulder tilt","어깨 기울기"],k4:["重心偏移","COG shift","무게중심 이동"],
+w_tilt:["躯干倾斜过大，请挺直上身","Trunk leaning, stand tall","몸통이 기울었습니다. 허리를 펴세요"],
+w_knee:["膝盖弯曲过深，请站高一些","Knees too deep, rise a little","무릎을 너무 깊이 굽혔습니다"],
+w_sh:["双肩不平，请放松摆正","Shoulders uneven, level them","어깨가 비대칭입니다. 수평으로 맞추세요"],
+w_cog:["重心偏移，请双脚均匀受力","Weight shifted, balance both feet","무게중심이 치우쳤습니다. 양발에 고르게"],
+good:["动作标准，继续保持","Good form, keep going","좋은 자세입니다. 계속하세요"],
+nobody:["未检测到完整人体，请站到画面中","Full body not detected, step into view","전신이 감지되지 않습니다. 화면 안으로 들어오세요"],
+load:["AI 姿态模型加载中…","Loading pose model…","자세 모델 로딩 중…"],
+camerr:["无法访问摄像头/麦克风：请用 localhost 或 https 打开并允许权限","Cannot access camera/mic: use localhost/https and allow permission","카메라/마이크 접근 불가: localhost/https로 열고 허용하세요"],
+liberr:["MediaPipe 加载失败，请检查网络","MediaPipe failed to load, check network","MediaPipe 로드 실패. 네트워크를 확인하세요"],
+fall:["⚠ 检测到跌倒风险，训练已自动暂停","⚠ Fall risk detected, training auto-paused","⚠ 낙상 위험 감지, 훈련 자동 일시정지"],
+fsp:["检测到跌倒风险，训练已暂停，请先坐下休息","Fall risk detected. Training paused. Please sit down and rest.","낙상 위험이 감지되어 훈련을 일시정지했습니다. 앉아서 쉬세요."],
+risk:["跌倒风险","Fall risk","낙상 위험"],
+mic:["麦克风音量（可说：暂停 / 救命）","Mic level (say: pause / help)","마이크 레벨 (말하기: 멈춰 / 도와줘)"],
+start:["开启摄像头/麦克风并开始","Start camera & mic","카메라/마이크 시작"],
+pause:["暂停","Pause","일시정지"],resume:["继续","Resume","계속"],finish:["结束训练","Finish","훈련 종료"],
+post:["训练后血压 收缩 / 舒张","Post-training BP (sys / dia)","훈련 후 혈압 (수축 / 이완)"],
+save:["保存打卡并同步医师","Save & sync to doctor","저장 후 의사에게 동기화"],
+c_date:["日期","Date","날짜"],c_dur:["时长(分)","Min","시간(분)"],c_comp:["完成度","Done","완료도"],c_pre:["训练前血压","Pre BP","훈련 전"],c_post:["训练后血压","Post BP","훈련 후"],c_sync:["医师端","Doctor","의사"],
+synced:["已同步","Synced","동기화됨"],reviewed:["已复核","Reviewed","검토됨"],
+g1:["血压波动（收缩压 红:训练前 / 蓝:训练后）","BP trend (systolic; red: pre / blue: post)","혈압 변동 (수축기; 빨강: 전 / 파랑: 후)"],
+g2:["肌力趋势：握力 (kg)","Muscle strength: grip (kg)","근력 추세: 악력 (kg)"],
+g3:["平衡能力：单腿站立 (秒)","Balance: one-leg stand (s)","균형 능력: 한발 서기 (초)"],
+d_pt:["患者 P-001 · 72岁 · 高血压合并衰弱","Patient P-001 · 72y · Hypertension + frailty","환자 P-001 · 72세 · 고혈압+허약"],
+d_rx:["人工修改处方（覆盖AI处方）","Edit prescription (override AI)","처방 수정 (AI 처방 덮어쓰기)"],
+d_note:["医嘱","Doctor's note","의사 소견"],d_save:["保存处方","Save Rx","처방 저장"],d_rev:["复核","Review","검토"],
+d_src:["处方来源","Rx source","처방 출처"],src_ai:["AI生成","AI generated","AI 생성"],src_dr:["医师修订","Doctor revised","의사 수정"],
+d_all:["患者全部康复数据","All patient rehab data","환자 전체 재활 데이터"],fl:["跌倒预警次数","Fall alerts","낙상 경고 횟수"],
+kt:[["高血压运动禁忌","衰弱养护","防跌倒","低盐饮食","血压与睡眠管理"],["Exercise precautions for hypertension","Caring for frailty","Fall prevention","Low-salt diet","BP & sleep management"],["고혈압 운동 주의사항","허약 관리","낙상 예방","저염 식단","혈압·수면 관리"]],
+kb:[["血压≥180/110 mmHg，或有胸痛、头晕、气促时禁止运动；避免憋气用力、突然起身、头低于心脏的动作；以“能说话”的强度为宜。","每日摄入足够蛋白质；每周3–5次抗阻与平衡训练并循序渐进；短期不明原因体重下降请及时就医。","保持地面干燥、照明充足；浴室加装扶手，穿防滑鞋；训练时身旁放稳固椅子以便扶靠。","每日食盐不超过5克；少吃腌制和加工食品；多吃蔬果及富钾食物；用香料代替盐调味。","早晚固定时间测量并记录血压；规律睡眠约7小时，晚间避免浓茶咖啡；打鼾伴憋气请排查睡眠呼吸暂停。"],
+["No exercise if BP ≥180/110 mmHg or with chest pain, dizziness or breathlessness. Avoid breath-holding, sudden standing and head-down moves; keep a talk-test intensity.","Eat enough protein daily; do resistance and balance training 3–5 times a week, progressing gradually; see a doctor for unexplained weight loss.","Keep floors dry and well lit; add bathroom grab bars and wear non-slip shoes; keep a sturdy chair beside you when training.","Keep salt under 5 g/day; limit pickled and processed food; eat more vegetables, fruit and potassium-rich foods; season with herbs.","Measure and log BP at fixed times morning and evening; sleep about 7 h regularly, avoid strong tea/coffee at night; check for sleep apnea if snoring with pauses."],
+["혈압 180/110 이상이거나 흉통·어지럼·호흡곤란이 있으면 운동 금지. 숨 참기, 갑자기 일어나기, 머리를 숙이는 동작을 피하고 대화가 가능한 강도로 하세요.","매일 단백질을 충분히 섭취하고 주 3~5회 근력·균형 운동을 점진적으로 하세요. 원인 모를 체중 감소는 진료받으세요.","바닥을 건조하고 밝게 유지하고 욕실 손잡이와 미끄럼 방지 신발을 사용하세요. 훈련 시 옆에 튼튼한 의자를 두세요.","소금은 하루 5g 미만, 절임·가공식품을 줄이고 채소·과일·칼륨 식품을 늘리며 향신료로 간하세요.","아침저녁 정해진 시간에 혈압을 재고 기록하세요. 7시간 규칙적 수면, 저녁 카페인 피하기, 코골이·무호흡이 있으면 검사받으세요."]]
+};
+const RXM=[[10,15,10,10,20],[10,12,10,8,15],[10,8,8,5,10]];
+let li=0,cur=0,lv=1,rx=[],RC=[],H=[],S={f:0,src:0,note:""},run=0,paused=0,pose,stream,SR,sec=0,tgt=10,fc=0,ph=null,lastSay=0,tm;
+const L=k=>D[k][li],LV=()=>L("lv"+lv),dt=n=>new Date(Date.now()-n*864e5).toISOString().slice(5,10);
+[158,154,152,148,146,142].forEach((s,i)=>RC.push({d:dt(6-i),m:[8,10,12,12,15,15][i],c:[70,78,85,88,92,95][i],pre:[s,90-i],post:[s-8,84-i],r:i<4}));
+[16,17,18,19,20,21].forEach((g,i)=>H.push({d:dt(6-i),g,b:[4,5,6,7,8,8][i]}));
+
+function sl(i){li=i;all()}
+function go(i){cur=i;document.querySelectorAll("section").forEach((s,j)=>s.classList.toggle("on",j==i));rNav();if(i==4)rCh();scrollTo(0,0)}
+function rNav(){$("nv").innerHTML=D.n[li].map((t,i)=>`<button class="${i==cur?"on":""}" onclick="go(${i})">${t}</button>`).join("")}
+
+/* 1 衰弱AI初筛 */
+function assess(init){
+ const s=+$("a_s").value,d=+$("a_d").value,g=+$("a_g").value,v=+$("a_v").value,b=+$("a_b").value;
+ const sc=(g<18?2:g<26?1:0)+(v<.6?2:v<.8?1:0)+(b<5?2:b<10?1:0)+(s>=160||d>=100?1:0);
+ lv=sc<=2?0:sc<=4?1:2;S.sc=sc;S.src=0;S.note="";
+ rx=RXM[lv].map(m=>({m,i:lv==0?1:0}));
+ if(init!==1)H.push({d:dt(0),g,b});
+ all();
+}
+function rAres(){const col=["#1b8a4b","#e08a00","#d32f2f"][lv];
+ $("ares").innerHTML=`<div class="card" style="border-left:12px solid ${col}"><h3>${L("sc")}: ${S.sc}/7 → <span style="color:${col}">${LV()}</span></h3><p>${L("why")}</p><button onclick="go(1)">${D.n[li][1]} ▶</button></div>`}
+
+/* 2 处方 */
+function rRx(){$("rx").innerHTML=`<p>${L("lvl")}: <b>${LV()}</b> · ${L("d_src")}: <b>${L(S.src?"src_dr":"src_ai")}</b></p><table><tr><th></th><th>${L("min")}</th><th>${L("int_")}</th></tr>${rx.map((r,i)=>`<tr><td>${D.p[li][i]}</td><td>${r.m}</td><td>${D.int[li][r.i]}</td></tr>`).join("")}</table>${S.note?`<p>📝 ${esc(S.note)}</p>`:""}<button onclick="go(2)">${D.n[li][2]} ▶</button>`}
+
+/* 5 血压联动自适应引擎 */
+function plan(){const s=+$("p_s").value,d=+$("p_d").value;return s>=180||d>=110?{m:"ban",f:0}:s>=160||d>=100?{m:"seat",f:.6}:s>=140||d>=90?{m:"low",f:.8}:{m:"up",f:1.2}}
+function rPlan(){const p=plan(),e=$("pl");e.textContent=L("m_"+p.m);e.className=p.m=="up"?"ok":p.m=="low"?"":"bad";
+ const x=rx[$("ex").value]||{m:10,i:0};tgt=Math.max(1,Math.round(x.m*p.f));
+ $("tg").textContent=L("target")+": "+tgt+" "+L("min")+" · "+D.int[li][Math.min(2,x.i+(p.m=="up"?1:0))]}
+
+/* 3 摄像头姿态训练 */
+function tip(t,b){const e=$("tp");e.textContent=t;e.className=b?"bad":"ok";if(b&&Date.now()-lastSay>9000){lastSay=Date.now();say(t)}}
+function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=["zh-CN","en-US","ko-KR"][li];speechSynthesis.speak(u)}catch(e){}}
+function tile(i,t,bad){const e=$("m"+i);e.textContent=t;e.className=bad?"bad":"ok"}
+function upd(){$("pa").textContent=L(paused?"resume":"pause")}
+function pa(){if(!run)return;paused=!paused;if(!paused){fc=0;ph=null;$("fb").style.display="none"}upd()}
+function fall(){if(paused)return;paused=1;fc=0;S.f++;$("fb").style.display="block";$("fb").textContent=L("fall");say(L("fsp"));upd();rDr()}
+
+function onRes(r){
+ const c=$("cv"),x=c.getContext("2d"),W=r.image.width,Hh=r.image.height;
+ if(c.width!=W)c.width=W;if(c.height!=Hh)c.height=Hh;
+ x.drawImage(r.image,0,0,W,Hh);
+ const p=r.poseLandmarks;if(!p){if(!paused)tip(L("nobody"),1);return}
+ x.lineWidth=4;x.strokeStyle="#19e3f5";
+ (window.POSE_CONNECTIONS||[]).forEach(([a,b])=>{if(p[a].visibility>.4&&p[b].visibility>.4){x.beginPath();x.moveTo(p[a].x*W,p[a].y*Hh);x.lineTo(p[b].x*W,p[b].y*Hh);x.stroke()}});
+ x.fillStyle="#ffd54a";p.forEach(q=>{if(q.visibility>.4){x.beginPath();x.arc(q.x*W,q.y*Hh,5,0,7);x.fill()}});
+ if(paused)return;
+ const v=i=>p[i].visibility>.5;
+ if(!(v(11)&&v(12)&&v(23)&&v(24))){tip(L("nobody"),1);return}
+ const A=180/Math.PI,ms={x:(p[11].x+p[12].x)/2},mh={x:(p[23].x+p[24].x)/2,y:(p[23].y+p[24].y)/2},msy=(p[11].y+p[12].y)/2;
+ const tilt=Math.abs(Math.atan2(ms.x-mh.x,mh.y-msy))*A,sw=Math.hypot(p[11].x-p[12].x,p[11].y-p[12].y)||.1;
+ let sa=Math.abs(Math.atan2(p[11].y-p[12].y,p[11].x-p[12].x))*A;sa=Math.min(sa,180-sa);
+ const ang=(a,b,c)=>{const u=[a.x-b.x,a.y-b.y],w=[c.x-b.x,c.y-b.y];return Math.acos(Math.max(-1,Math.min(1,(u[0]*w[0]+u[1]*w[1])/((Math.hypot(...u)*Math.hypot(...w))||1))))*A};
+ const ks=[[23,25,27],[24,26,28]].filter(t=>t.every(v)).map(t=>ang(p[t[0]],p[t[1]],p[t[2]]));
+ const seat=plan().m=="seat",knee=ks.length&&!seat?Math.min(...ks):null,cog=!seat&&v(27)&&v(28)?Math.abs(mh.x-(p[27].x+p[28].x)/2)/sw:null;
+ /* 跌倒风险：倾斜角 / 身体横置 / 髋部骤降 */
+ const now=performance.now();let drop=0;if(ph&&now>ph.t)drop=(mh.y-ph.y)/((now-ph.t)/1000);ph={y:mh.y,t:now};
+ const xs=p.map(q=>q.x),ys=p.map(q=>q.y),bw=Math.max(...xs)-Math.min(...xs),bh=Math.max(...ys)-Math.min(...ys);
+ const risk=Math.min(100,Math.round(tilt*2+(cog||0)*50+sa*1.5));
+ $("rk").style.width=risk+"%";$("rkt").textContent=risk+"%";
+ fc=(tilt>35||((v(27)||v(28))&&bw>bh*1.15)||drop>.8)?fc+1:0;
+ if(fc>=4){fall();return}
+ const w=[];if(tilt>12)w.push("w_tilt");if(knee!=null&&knee<80)w.push("w_knee");if(sa>8)w.push("w_sh");if(cog!=null&&cog>.45)w.push("w_cog");
+ tile(1,tilt.toFixed(0)+"°",tilt>12);tile(2,knee!=null?knee.toFixed(0)+"°":"--",knee!=null&&knee<80);
+ tile(3,sa.toFixed(0)+"°",sa>8);tile(4,cog!=null?cog.toFixed(2):"--",cog!=null&&cog>.45);
+ tip(w.length?w.map(L).join(" · "):L("good"),w.length);
+}
+async function loop(){if(!run)return;if($("vid").readyState>=2){try{await pose.send({image:$("vid")})}catch(e){}}requestAnimationFrame(loop)}
+function micMeter(s){try{const a=new(window.AudioContext||webkitAudioContext)(),n=a.createAnalyser();a.createMediaStreamSource(s).connect(n);const d=new Uint8Array(n.fftSize);
+ (function f(){if(!run)return;n.getByteTimeDomainData(d);let m=0;d.forEach(q=>m=Math.max(m,Math.abs(q-128)));$("mic").style.width=Math.min(100,m*1.6)+"%";requestAnimationFrame(f)})()}catch(e){}}
+function voice(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;
+ SR=new R();SR.continuous=true;SR.lang=["zh-CN","en-US","ko-KR"][li];
+ SR.onresult=e=>{const t=e.results[e.results.length-1][0].transcript.toLowerCase();if(/救命|help|도와/.test(t))fall();else if(/暂停|pause|멈춰|정지/.test(t)){paused=1;upd()}};
+ SR.onend=()=>{if(run)try{SR.start()}catch(e){}};try{SR.start()}catch(e){}}
+async function start(){
+ if(run)return;const pl=plan();if(pl.m=="ban"){alert(L("m_ban"));return}
+ if(!window.Pose){tip(L("liberr"),1);return}
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:640,height:480},audio:true})}catch(e){tip(L("camerr"),1);return}
+ const vid=$("vid");vid.srcObject=stream;await vid.play();tip(L("load"));
+ if(!pose){pose=new Pose({locateFile:f=>"https://cdn.jsdelivr.net/npm/@mediapipe/pose/"+f});
+  pose.setOptions({modelComplexity:1,smoothLandmarks:true,minDetectionConfidence:.5,minTrackingConfidence:.5});pose.onResults(onRes)}
+ run=1;paused=0;sec=0;fc=0;ph=null;$("fb").style.display="none";$("po").style.display="none";upd();micMeter(stream);voice();loop();
+ clearInterval(tm);tm=setInterval(()=>{if(run&&!paused){sec++;$("el").textContent=Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0")+" / "+tgt+":00"}},1000);
+}
+function fin(){if(!run)return;run=0;clearInterval(tm);stream.getTracks().forEach(t=>t.stop());try{SR&&SR.stop()}catch(e){}$("po").style.display="block"}
+
+/* 4 打卡 */
+function sv(){RC.push({d:dt(0),m:+(sec/60).toFixed(1),c:Math.min(100,Math.round(sec/60/tgt*100)),pre:[+$("p_s").value,+$("p_d").value],post:[+$("q_s").value,+$("q_d").value],r:0});
+ $("po").style.display="none";sec=0;$("el").textContent="0:00";all();go(3)}
+const tb=dr=>`<table><tr><th>${L("c_date")}</th><th>${L("c_dur")}</th><th>${L("c_comp")}</th><th>${L("c_pre")}</th><th>${L("c_post")}</th><th>${L("c_sync")}</th></tr>${RC.map((r,i)=>`<tr><td>${r.d}</td><td>${r.m}</td><td>${r.c}%</td><td>${r.pre.join("/")}</td><td>${r.post.join("/")}</td><td>${dr?(r.r?"✔ "+L("reviewed"):`<button onclick="RC[${i}].r=1;all()">${L("d_rev")}</button>`):"✔ "+L("synced")}</td></tr>`).join("")}</table>`;
+
+/* 7 图谱 */
+function ch(id,ss,cs,lb){const c=$(id);if(!c.clientWidth)return;
+ const w=c.width=c.clientWidth*2,h=c.height=260,x=c.getContext("2d"),a=ss.flat(),mn=Math.min(...a)-2,mx=Math.max(...a)+2,
+ X=i=>70+i*(w-100)/Math.max(1,lb.length-1),Y=v=>h-40-(v-mn)/(mx-mn)*(h-70);
+ x.font="22px sans-serif";x.fillStyle="#0b2e5a";x.strokeStyle="#9bc";x.lineWidth=2;x.beginPath();x.moveTo(60,10);x.lineTo(60,h-35);x.lineTo(w-10,h-35);x.stroke();
+ x.fillText(Math.round(mx),4,24);x.fillText(Math.round(mn),4,h-38);lb.forEach((t,i)=>x.fillText(t,X(i)-28,h-8));
+ ss.forEach((s,k)=>{x.strokeStyle=x.fillStyle=cs[k];x.lineWidth=4;x.beginPath();s.forEach((q,i)=>i?x.lineTo(X(i),Y(q)):x.moveTo(X(i),Y(q)));x.stroke();s.forEach((q,i)=>{x.beginPath();x.arc(X(i),Y(q),6,0,7);x.fill()})})}
+function rCh(){const R=RC.slice(-8),Hs=H.slice(-8);
+ ch("c1",[R.map(r=>r.pre[0]),R.map(r=>r.post[0])],["#d32f2f","#0e9fb5"],R.map(r=>r.d));
+ ch("c2",[Hs.map(q=>q.g)],["#0b2e5a"],Hs.map(q=>q.d));ch("c3",[Hs.map(q=>q.b)],["#1b8a4b"],Hs.map(q=>q.d))}
+
+/* 8 医师后台 */
+function rDr(){$("dr").innerHTML=`<p><b>${L("d_pt")}</b><br>${L("lvl")}: ${LV()} · ${L("fl")}: ${S.f} · ${L("d_src")}: ${L(S.src?"src_dr":"src_ai")}</p><h3>${L("d_rx")}</h3>`+
+ rx.map((r,i)=>`<div class="g"><b>${D.p[li][i]}</b><input type="number" id="dm${i}" value="${r.m}"><select id="di${i}">${D.int[li].map((t,j)=>`<option value="${j}"${j==r.i?" selected":""}>${t}</option>`).join("")}</select></div>`).join("")+
+ `<label>${L("d_note")}<textarea id="dn">${esc(S.note)}</textarea></label><p><button onclick="dsv()">${L("d_save")}</button></p><h3>${L("d_all")}</h3>`+tb(1)}
+function dsv(){rx.forEach((r,i)=>{r.m=+$("dm"+i).value;r.i=+$("di"+i).value});S.note=$("dn").value;S.src=1;all()}
+
+/* 9 科普 */
+function rK(){$("kb").innerHTML=D.kt[li].map((t,i)=>`<details ${i?"":"open"}><summary>${t}</summary><p>${D.kb[li][i]}</p></details>`).join("")}
+
+function all(){
+ document.documentElement.lang=["zh","en","ko"][li];document.title=L("title");
+ document.querySelectorAll("[data-i]").forEach(e=>e.textContent=L(e.dataset.i));
+ document.querySelectorAll(".lg button").forEach((b,j)=>b.classList.toggle("on",j==li));
+ const v=$("ex").value||0;$("ex").innerHTML=D.p[li].map((t,i)=>`<option value="${i}">${t}</option>`).join("");$("ex").value=v;
+ rNav();rAres();rPlan();rRx();$("rc").innerHTML=tb(0);rDr();rCh();rK();upd();
+ if(!run)tip(L("good"));
+}
+assess(1);
+</script></body></html>

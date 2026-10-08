@@ -1,2 +1,2 @@
-# Elderly-Hypertension-Combined-with-Frailty-Remote-Rehabilitation
-老年高血压合并衰弱远程康复DTx
+# elderly-hypertension-rehab
+老年人高血压合并衰弱远程康复平台DTx
